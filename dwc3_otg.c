@@ -50,6 +50,7 @@ MODULE_PARM_DESC(aca_enable, "Force ACA host mode to allow charging and host.");
 int ID_MODE;
 
 static void dwc3_otg_reset(struct dwc3_otg *dotg);
+static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA);
 
 static void dwc3_otg_notify_host_mode(struct usb_otg *otg, int host_mode);
 static void dwc3_otg_reset(struct dwc3_otg *dotg);
@@ -209,6 +210,8 @@ static int dwc3_otg_start_host(struct usb_otg *otg, int on)
 	struct dwc3_otg *dotg = container_of(otg, struct dwc3_otg, otg);
 	struct dwc3_ext_xceiv *ext_xceiv = dotg->ext_xceiv;
 	struct dwc3 *dwc = dotg->dwc;
+	struct usb_phy *phy = dotg->otg.phy;
+	
 	int ret = 0;
 
 	if (!dwc->xhci)
@@ -231,16 +234,21 @@ static int dwc3_otg_start_host(struct usb_otg *otg, int on)
 	if (on) {
 		dev_dbg(otg->phy->dev, "%s: turn on host\n", __func__);
 
+		/*if(aca_enable)
+			//Set power to charge
+			   dwc3_otg_set_power(phy, DWC3_IDEV_CHG_MAX);
+			*/   
 		dwc3_otg_notify_host_mode(otg, on);
 		
 		if(!aca_enable){
-		ret = regulator_enable(dotg->vbus_otg);
-		if (ret) {
-			dev_err(otg->phy->dev, "unable to enable vbus_otg\n");
-			dwc3_otg_notify_host_mode(otg, 0);
-			return ret;
-		}
-		 }
+			ret = regulator_enable(dotg->vbus_otg);
+			if (ret) {
+				dev_err(otg->phy->dev, "unable to enable vbus_otg\n");
+				dwc3_otg_notify_host_mode(otg, 0);
+				return ret;
+			}
+	    }
+	
 
 		/*
 		 * This should be revisited for more testing post-silicon.
@@ -278,6 +286,8 @@ static int dwc3_otg_start_host(struct usb_otg *otg, int on)
 		/* re-init OTG EVTEN register as XHCI reset clears it */
 		if (ext_xceiv && !ext_xceiv->otg_capability)
 			dwc3_otg_reset(dotg);
+			
+			
 	} else {
 		dev_dbg(otg->phy->dev, "%s: turn off host\n", __func__);
 
@@ -288,8 +298,10 @@ static int dwc3_otg_start_host(struct usb_otg *otg, int on)
 			return ret;
 		}
 	    }
-		
-		dwc3_otg_notify_host_mode(otg, on);
+		/*if(aca_enable)
+			//Set power to charge
+			   dwc3_otg_set_power(phy, 0);
+			*/   
 
 		platform_device_del(dwc->xhci);
 		/*
@@ -557,22 +569,23 @@ int dwc3_set_ext_xceiv(struct usb_otg *otg, struct dwc3_ext_xceiv *ext_xceiv)
 static void dwc3_otg_notify_host_mode(struct usb_otg *otg, int host_mode)
 {
 	struct dwc3_otg *dotg = container_of(otg, struct dwc3_otg, otg);
+	
+	
     if(!aca_enable){
-	if (!dotg->psy) {
-		dev_err(otg->phy->dev, "no usb power supply registered\n");
-		return;
-	}
-
-	if (host_mode)
-		power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_SYSTEM);
-	else
-		power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_DEVICE);
-	}
-	else{
 		if (!dotg->psy) {
-		  dev_err(otg->phy->dev, "no usb power supply registered\n");
+			dev_err(otg->phy->dev, "no usb power supply registered\n");
+			return;
+		}
+
+		if (host_mode)
+			power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_SYSTEM);
+		else
+			power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_DEVICE);
+		
+	 }else{
+		/*dev_err(otg->phy->dev, "no usb power supply registered\n");
 		  return;
-	    }
+	    }*/
 	    power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_DEVICE);
 	}
 }
@@ -1026,7 +1039,14 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			work = 1;
 		} else {
 			phy->state = OTG_STATE_A_HOST;
+			
+			if(aca_enable){
+			//Set power to charge
+			   dwc3_otg_set_power(phy, DWC3_IDEV_CHG_MAX);
+			}
+
 			ret = dwc3_otg_start_host(&dotg->otg, 1);
+				
 			if ((ret == -EPROBE_DEFER) &&
 						dotg->vbus_retry_count < 3) {
 				/*
@@ -1055,6 +1075,12 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 	case OTG_STATE_A_HOST:
 		if (test_bit(ID_MODE, &dotg->inputs)) {
 			dev_dbg(phy->dev, "id\n");
+			
+			if(aca_enable){
+			   //Set power to off
+			   dwc3_otg_set_power(phy, 0);
+			} 
+
 			dwc3_otg_start_host(&dotg->otg, 0);
 			phy->state = OTG_STATE_B_IDLE;
 			dotg->vbus_retry_count = 0;
