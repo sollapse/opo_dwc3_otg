@@ -623,6 +623,10 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 		   power_supply_type = POWER_SUPPLY_TYPE_USB_ACA;*/
 	else
 		power_supply_type = POWER_SUPPLY_TYPE_UNKNOWN;
+		
+		//Detect as regular charger for notification
+		if(aca_enable)
+			power_supply_type = POWER_SUPPLY_TYPE_USB;
 
 	power_supply_set_supply_type(dotg->psy, power_supply_type);
 
