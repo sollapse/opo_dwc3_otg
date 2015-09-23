@@ -13,7 +13,7 @@ With the modified kernel flashed, open a terminal shell and as root, enter the f
 
 This activates the 'ACA' host mode hack.
 
-The tricky part is now getting your Y-OTG adapter to send power to the phone. First with power cable and USB device(s) connected the adapter, plug the Y cable into the phone. Test that the phone reads the device. Now, unplug the cable from the phone, leaving the USB device and power cord plugged into the OTG adapter. Gently wiggle the cable slightly while slowly pushing it back into the phone's port (seriously), wait for the charge indicator to come on. Once the phone detects the charge, you can push the cable in all the way. The phone should be charging at max current rate while retaining host mode.
+Plug the phone's charger and USB device(s) into the Y-adapter before attaching it to the phone. Once everthing is connected, the phone should start to charge and enter host mode. You can test by running the lsusb command in the shell using either BusyBox or Linux chroot.
 
 Please, if you can test the powered hub method or have improvements to this hack, feel free to share! Also, the standard legal disclaimer applies here that by using this mod/code/kernel in anyway is completely your responsibility. I'm not liable for any possible damages to your devices.
 
